@@ -3,6 +3,7 @@ const Blog = require('../models/Blog');
 // @desc    Get all blogs
 // @route   GET /api/blogs
 // @access  Public
+
 const getBlogs = async (req, res) => {
     try {
         const blogs = await Blog.find();
@@ -15,6 +16,7 @@ const getBlogs = async (req, res) => {
 // @desc    Create a blog
 // @route   POST /api/blogs
 // @access  Private
+
 const createBlog = async (req, res) => {
     const { title, description, date } = req.body;
     console.log(title, description);
@@ -23,14 +25,13 @@ const createBlog = async (req, res) => {
     if (req.file) {
         image = req.file.path;
     }
-
     try {
         const blog = new Blog({
             title,
             description,
             date: date || Date.now(),
             image,
-            createdBy: req.user._id // from auth middleware
+            createdBy: req.user._id
         });
 
         const createdBlog = await blog.save();

@@ -10,8 +10,11 @@
     "sass": "sass --watch public/assets/scss/main.scss:public/assets/css/main.css"
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-build-classic": "^41.4.2",
+    "@ckeditor/ckeditor5-react": "^11.0.1",
     "@reduxjs/toolkit": "^2.8.2",
     "axios": "^1.10.0",
+    "ckeditor5": "^47.4.0",
     "cloudinary": "^2.7.0",
     "clsx": "^2.1.1",
     "isotope-layout": "^3.0.6",

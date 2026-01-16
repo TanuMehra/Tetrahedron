@@ -2,6 +2,10 @@ const express = require('express');
 const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDB = require('./src/config/db');
+const authRoutes =  require('./src/routes/authRoutes')
+const blogRoutes = require('./src/routes/blogRoutes');
+const caseRoutes = require('./src/routes/caseRoutes');
+
 
 // Load environment variables
 dotenv.config();
@@ -17,9 +21,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Routes
-app.use('/api/auth', require('./src/routes/authRoutes'));
-app.use('/api/blogs', require('./src/routes/blogRoutes'));
-app.use('/api/cases', require('./src/routes/caseRoutes'));
+app.use('/api/auth', authRoutes);
+app.use('/api/blogs', blogRoutes);
+app.use('/api/cases', caseRoutes);
 
 // Root Route
 app.get('/', (req, res) => {

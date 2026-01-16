@@ -4,13 +4,11 @@ import Menu from "../Menu";
 import MobileMenu from "../MobileMenu";
 import Modal from "../../../app/leadModal";
 import ContactFormModal from "@/components/ContactFormModal";
-import CreateBlogModal from "@/components/CreateBlogModal";
 import { useState } from "react";
 
 export default function Header({ scroll, handlePopup, handleMobileMenu, isMobileMenu }) {
     const [isModalOpen, setModalOpen] = useState(false);
     const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-    const [isCreateBlogModalOpen, setIsCreateBlogModalOpen] = useState(false);
     const [modalButtonText, setModalButtonText] = useState("");
 
     const openContactModal = (buttonText) => {
@@ -151,7 +149,7 @@ export default function Header({ scroll, handlePopup, handleMobileMenu, isMobile
                                             }
                                         `}</style>
                                         <div className="main-menu-two__main-menu-box">
-                                            <Menu onCreateBlogClick={() => setIsCreateBlogModalOpen(true)} />
+                                            <Menu />
                                         </div>
                                     </div>
                                     <div className="main-menu-two__btn-box">
@@ -176,10 +174,6 @@ export default function Header({ scroll, handlePopup, handleMobileMenu, isMobile
                     <Modal isOpen={isModalOpen} onClose={() => setModalOpen(false)} />
                 </div>
             )}
-            <CreateBlogModal 
-                isOpen={isCreateBlogModalOpen}
-                onClose={() => setIsCreateBlogModalOpen(false)}
-            />
             <ContactFormModal
                 open={isContactModalOpen}
                 onClose={closeContactModal}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function Menu({ onCreateBlogClick }) {
+export default function Menu() {
   return (
     <>
       <ul className="main-menu__list" role="menubar">
@@ -1072,35 +1072,8 @@ export default function Menu({ onCreateBlogClick }) {
           <Link href="/case-studies">Case Studies</Link>
         </li>
 
-        <li className="dropdown">
-          <Link href="/#" aria-haspopup="true">
-            Blogs
-          </Link>
-          <ul role="menu">
-            <li>
-              <Link href="/blog">View All Blogs</Link>
-            </li>
-            <li>
-              <button 
-                onClick={(e) => {
-                  e.preventDefault();
-                  onCreateBlogClick && onCreateBlogClick();
-                }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'inherit',
-                  cursor: 'pointer',
-                  padding: '0',
-                  font: 'inherit',
-                  textAlign: 'left',
-                  width: '100%'
-                }}
-              >
-                Create Blog
-              </button>
-            </li>
-          </ul>
+        <li>
+          <Link href="/blog">Blogs</Link>
         </li>
 
         <li>
