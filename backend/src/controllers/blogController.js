@@ -19,7 +19,6 @@ const getBlogs = async (req, res) => {
 
 const createBlog = async (req, res) => {
     const { title, description, date } = req.body;
-    console.log(title, description);
     let image = '';
     console.log(req.file);
     if (req.file) {

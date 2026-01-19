@@ -1,8 +1,8 @@
 "use client";
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import Swal from "sweetalert2";
 
 import {
   LayoutDashboard,
@@ -75,10 +75,7 @@ const leadsData = [
   },
 ];
 
-const blogsData = [
-  { id: 1, title: "Learn React" },
-  { id: 2, title: "Next.js Basics" },
-];
+const blogsData = [];
 
 /* ================= SIDEBAR ================= */
 
@@ -88,6 +85,8 @@ const sidebarItems = [
   { label: "Leads", icon: Target },
   { label: "Blog Manage", icon: FolderOpen },
   { label: "Blogs", icon: FileText },
+  { label: "Cases", icon: FolderOpen },
+  { label: "Case Manage", icon: FolderOpen },
   { label: "Settings", icon: Settings },
 ];
 
@@ -145,6 +144,8 @@ export default function AdminDashboard() {
           {activePage === "Leads" && <LeadsPage />}
           {activePage === "Blog Manage" && <BlogManagePage />}
           {activePage === "Blogs" && <BlogsPage />}
+          {activePage === "Cases" && <CasesPage />}
+          {activePage === "Case Manage" && <CaseManagePage />}
           {activePage === "Settings" && (
             <SettingsPage onLogout={() => setShowLogoutModal(true)} />
           )}
@@ -253,50 +254,209 @@ function LeadsPage() {
 /* ================= BLOG MANAGE ================= */
 
 function BlogManagePage() {
-  const [blogs, setBlogs] = useState(blogsData);
+  const [blogs, setBlogs] = useState([]);
   const [deleteId, setDeleteId] = useState(null);
+  const [editBlog, setEditBlog] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editImage, setEditImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const handleDelete = () => {
-    setBlogs(blogs.filter((b) => b.id !== deleteId));
-    setDeleteId(null);
+  // Fetch blogs on component mount
+  const fetchBlogs = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:5000/api/blogs", {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch blogs");
+      }
+
+      const data = await response.json();
+      setBlogs(data);
+    } catch (error) {
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Use effect to fetch blogs on mount
+  useEffect(() => {
+    fetchBlogs();
+  }, []);
+
+  const handleEdit = (blog) => {
+    setEditBlog(blog);
+    setEditTitle(blog.title);
+    setEditDescription(blog.description);
+    setEditImage(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTitle || !editDescription) {
+      Swal.fire({ icon: "warning", title: "Missing fields", text: "Title and description are required" });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("adminToken");
+
+      const formData = new FormData();
+      formData.append("title", editTitle);
+      formData.append("description", editDescription);
+
+      if (editImage) {
+        formData.append("image", editImage);
+      }
+
+      const response = await fetch(`http://localhost:5000/api/blogs/${editBlog._id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Failed to update blog");
+        return;
+      }
+
+      // Update the blog in the list
+      setBlogs(blogs.map((b) => (b._id === editBlog._id ? data : b)));
+      setEditBlog(null);
+      alert("✅ Blog updated successfully");
+    } catch (error) {
+
+      alert("Failed to update blog");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setDeleteLoading(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("adminToken");
+
+      const response = await fetch(`http://localhost:5000/api/blogs/${deleteId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete blog");
+      }
+
+      // Remove blog from list
+      setBlogs(blogs.filter((b) => b._id !== deleteId));
+      setDeleteId(null);
+      alert("✅ Blog deleted successfully");
+    } catch (error) {
+      console.error("Error deleting blog:", error);
+      alert("Failed to delete blog");
+    } finally {
+      setDeleteLoading(false);
+    }
   };
 
   return (
     <div className="card p-3">
       <h6>Manage Blogs</h6>
 
-      <table className="table mt-3">
-        <thead>
-          <tr>
-            <th>Blog Title</th>
-            <th style={{ width: 180 }}>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {blogs.map((blog) => (
-            <tr key={blog.id}>
-              <td>{blog.title}</td>
-              <td>
-                <button
-                  className="btn btn-sm me-2"
-                  style={{ backgroundColor: "#f66829", color: "#fff" }}
-                >
-                  <Pencil size={14} className="me-1" />
-                  Edit
-                </button>
-                <button
-                  className="btn btn-sm btn-outline-danger"
-                  onClick={() => setDeleteId(blog.id)}
-                >
-                  <Trash2 size={14} className="me-1" />
-                  Delete
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {loading && <p>Loading blogs...</p>}
 
+      {!loading && blogs.length === 0 && <p>No blogs found</p>}
+
+      {!loading && blogs.length > 0 && (
+        <table className="table mt-3">
+          <thead>
+            <tr>
+              <th>Blog Title</th>
+              <th style={{ width: 180 }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {blogs.map((blog) => (
+              <tr key={blog._id}>
+                <td>{blog.title}</td>
+                <td>
+                  <button
+                    className="btn btn-sm me-2"
+                    style={{ backgroundColor: "#f66829", color: "#fff" }}
+                    onClick={() => handleEdit(blog)}
+                  >
+                    <Pencil size={14} className="me-1" />
+                    Edit
+                  </button>
+                  <button
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => setDeleteId(blog._id)}
+                  >
+                    <Trash2 size={14} className="me-1" />
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {/* Edit Modal */}
+      {editBlog && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50">
+          <div className="bg-white p-4 rounded" style={{ width: 500, maxHeight: "80vh", overflowY: "auto" }}>
+            <h5>Edit Blog</h5>
+            <input
+              type="text"
+              className="form-control my-3"
+              placeholder="Blog title"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+            />
+            <div style={{ minHeight: "120px", marginBottom: "15px" }}>
+              <CKEditorClient value={editDescription} onChange={setEditDescription} />
+            </div>
+            <input
+              type="file"
+              className="form-control my-3"
+              accept="image/*"
+              onChange={(e) => setEditImage(e.target.files[0])}
+            />
+            <div className="d-flex justify-content-end gap-2">
+              <button
+                className="btn btn-secondary"
+                onClick={() => setEditBlog(null)}
+                disabled={loading}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn"
+                style={{ backgroundColor: "#f66829", color: "#fff" }}
+                onClick={handleSaveEdit}
+                disabled={loading}
+              >
+                {loading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
       {deleteId && (
         <ConfirmModal
           title="Delete Blog"
@@ -309,43 +469,382 @@ function BlogManagePage() {
   );
 }
 
+/* ================= CASE MANAGE ================= */
+
+function CaseManagePage() {
+  const [cases, setCases] = useState([]);
+  const [deleteId, setDeleteId] = useState(null);
+  const [editCase, setEditCase] = useState(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editImage, setEditImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  const fetchCases = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("http://localhost:5000/api/cases", {
+        method: "GET",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (!response.ok) throw new Error("Failed to fetch cases");
+      const data = await response.json();
+      setCases(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCases();
+  }, []);
+
+  const handleEdit = (c) => {
+    setEditCase(c);
+    setEditTitle(c.title);
+    setEditDescription(c.description);
+    setEditImage(null);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editTitle || !editDescription) {
+      alert("Title and description are required");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("adminToken");
+
+      const formData = new FormData();
+      formData.append("title", editTitle);
+      formData.append("description", editDescription);
+      if (editImage) formData.append("image", editImage);
+
+      const response = await fetch(`http://localhost:5000/api/cases/${editCase._id}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        Swal.fire({ icon: "error", title: "Update failed", text: data.message || "Failed to update case" });
+        return;
+      }
+
+      setCases(cases.map((it) => (it._id === editCase._id ? data : it)));
+      setEditCase(null);
+      Swal.fire({ icon: "success", title: "Updated", text: "Case updated successfully" });
+    } catch (error) {
+      console.error(error);
+      Swal.fire({ icon: "error", title: "Update failed", text: "Failed to update case" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      setDeleteLoading(true);
+      const token = localStorage.getItem("authToken") || localStorage.getItem("adminToken");
+
+      const response = await fetch(`http://localhost:5000/api/cases/${deleteId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete case");
+      }
+
+      setCases(cases.filter((c) => c._id !== deleteId));
+      setDeleteId(null);
+      Swal.fire({ icon: "success", title: "Deleted", text: "Case deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting case:", error);
+      Swal.fire({ icon: "error", title: "Delete failed", text: "Failed to delete case" });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
+  return (
+    <div className="card p-3">
+      <h6>Manage Cases</h6>
+
+      {loading && <p>Loading cases...</p>}
+
+      {!loading && cases.length === 0 && <p>No cases found</p>}
+
+      {!loading && cases.length > 0 && (
+        <table className="table mt-3">
+          <thead>
+            <tr>
+              <th>Case Title</th>
+              <th style={{ width: 180 }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cases.map((c) => (
+              <tr key={c._id}>
+                <td>{c.title}</td>
+                <td>
+                  <button
+                    className="btn btn-sm me-2"
+                    style={{ backgroundColor: "#f66829", color: "#fff" }}
+                    onClick={() => handleEdit(c)}
+                  >
+                    <Pencil size={14} className="me-1" />
+                    Edit
+                  </button>
+                  <button
+                    className="btn btn-sm btn-outline-danger"
+                    onClick={() => setDeleteId(c._id)}
+                  >
+                    <Trash2 size={14} className="me-1" />
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+
+      {editCase && (
+        <div className="position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center bg-dark bg-opacity-50">
+          <div className="bg-white p-4 rounded" style={{ width: 500, maxHeight: "80vh", overflowY: "auto" }}>
+            <h5>Edit Case</h5>
+            <input
+              type="text"
+              className="form-control my-3"
+              placeholder="Case title"
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+            />
+            <div style={{ minHeight: "120px", marginBottom: "15px" }}>
+              <CKEditorClient value={editDescription} onChange={setEditDescription} />
+            </div>
+            <input
+              type="file"
+              className="form-control my-3"
+              accept="image/*"
+              onChange={(e) => setEditImage(e.target.files[0])}
+            />
+            <div className="d-flex justify-content-end gap-2">
+              <button className="btn btn-secondary" onClick={() => setEditCase(null)} disabled={loading}>
+                Cancel
+              </button>
+              <button
+                className="btn"
+                style={{ backgroundColor: "#f66829", color: "#fff" }}
+                onClick={handleSaveEdit}
+                disabled={loading}
+              >
+                {loading ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteId && (
+        <ConfirmModal
+          title="Delete Case"
+          message="Are you sure you want to delete this case?"
+          onCancel={() => setDeleteId(null)}
+          onConfirm={handleDelete}
+        />
+      )}
+    </div>
+  );
+}
+
+/* ================= CASES ================= */
+
+function CasesPage() {
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handlePublish = async () => {
+    if (!title || !content) {
+      Swal.fire({ icon: "warning", title: "Missing fields", text: "Title and content required" });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const token = localStorage.getItem("authToken");
+
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", content);
+      if (image) formData.append("image", image);
+
+      const response = await fetch("http://localhost:5000/api/cases", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        Swal.fire({ icon: "error", title: "Publish failed", text: data.message || "Case publish failed" });
+        return;
+      }
+
+      Swal.fire({ icon: "success", title: "Published", text: "Case published successfully" });
+      setTitle("");
+      setContent("");
+      setImage(null);
+    } catch (error) {
+      console.error(error);
+      Swal.fire({ icon: "error", title: "Error", text: "Something went wrong" });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="container mt-4">
+      <div className="card p-4 shadow-sm">
+        <h5 className="mb-3">Create Case</h5>
+
+        <input
+          className="form-control my-3"
+          placeholder="Case title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+
+        <input
+          type="file"
+          className="form-control my-3"
+          accept="image/*"
+          onChange={(e) => setImage(e.target.files[0])}
+        />
+
+        <div style={{ minHeight: "120px" }}>
+          <CKEditorClient value={content} onChange={setContent} />
+        </div>
+
+        <div className="d-flex justify-content-end mt-4">
+          <button
+            className="btn"
+            style={{ backgroundColor: "#f66829", color: "#fff" }}
+            onClick={handlePublish}
+            disabled={loading}
+          >
+            {loading ? "Publishing..." : "Publish Case"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ================= BLOGS ================= */
 
 function BlogsPage() {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [image, setImage] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  const handlePublish = async () => {
+    if (!title || !content) {
+      alert("Title aur content required hai");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+
+      const token = localStorage.getItem("authToken");
+
+
+      const formData = new FormData();
+      formData.append("title", title);
+      formData.append("description", content);
+
+      if (image) {
+        formData.append("image", image);
+      }
+
+      const response = await fetch("http://localhost:5000/api/blogs", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Blog publish failed");
+        return;
+      }
+
+      alert("✅ Blog published successfully");
+
+      // reset form
+      setTitle("");
+      setContent("");
+      setImage(null);
+    } catch (error) {
+      console.error(error);
+      alert("Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
-    <div className="card p-4">
-      <h5>Create Blog</h5>
+    <div className="container mt-4">
+      <div className="card p-4 shadow-sm">
+        <h5 className="mb-3">Create Blog</h5>
 
-      <input
-        className="form-control my-3"
-        placeholder="Blog title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-      />
+        {/* Blog Title */}
+        <input
+          className="form-control my-3"
+          placeholder="Blog title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
 
-      <input
-         type="file"
-        className="form-control my-3"
-        placeholder="Blog title"
-        
-        
-      />
+        {/* Blog Image */}
+        <input
+          type="file"
+          className="form-control my-3"
+          accept="image/*"
+          onChange={(e) => setImage(e.target.files[0])}
+        />
 
-      <div style={{ minHeight: "100px" }}>
-        <CKEditorClient  value={content} onChange={setContent} />
-      </div>
+        {/* Blog Content */}
+        <div style={{ minHeight: "120px" }}>
+          <CKEditorClient value={content} onChange={setContent} />
+        </div>
 
-      <div className="d-flex justify-content-end mt-3 gap-2">
-        
-        <button
-          className="btn"
-          style={{ backgroundColor: "#f66829", color: "#fff" }}
-        >
-          Publish Blog
-        </button>
+        {/* Button */}
+        <div className="d-flex justify-content-end mt-4">
+          <button
+            className="btn"
+            style={{ backgroundColor: "#f66829", color: "#fff" }}
+            onClick={handlePublish}
+            disabled={loading}
+          >
+            {loading ? "Publishing..." : "Publish Blog"}
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -407,3 +906,4 @@ function StatCard({ title, value }) {
     </div>
   );
 }
+

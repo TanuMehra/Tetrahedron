@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useDispatch, useSelector } from "react-redux";
 import Layout from "@/components/layout/Layout";
 import { fetchBlogs, selectBlogs, selectBlogsLoading, selectBlogsError, selectBlogPagination } from "@/lib/store/blogSlice";
+import { stripHtmlTags } from "@/lib/utils";
 
 const poppinsFont = {
   fontFamily: "Poppins, sans-serif !important"
@@ -68,9 +69,10 @@ export default function Home(){
     // Get excerpt from description
     const getBlogExcerpt = (blog) => {
         if (blog.description) {
-            const text = blog.description.length > 150 
-                ? blog.description.substring(0, 150) + '...' 
-                : blog.description;
+            const plainText = stripHtmlTags(blog.description);
+            const text = plainText.length > 150 
+                ? plainText.substring(0, 150) + '...' 
+                : plainText;
             return text;
         }
         return 'No description available.';

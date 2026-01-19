@@ -1,403 +1,182 @@
-# Tetrahedron Backend API Documentation
+ # Tetrahedron Backend API Documentation
 
-## Overview
+ ## Overview
 
-This API provides endpoints for managing authentication, blogs, and case studies. The API uses JWT tokens for authentication on protected routes.
+ This document describes the currently implemented backend API (authentication, blogs and case studies).
+ Base URL (local): `http://localhost:5000/api`
 
-**Base URL:** `http://localhost:5000/api`
+ Notes:
+ - Authentication uses JWTs. Tokens are issued on registration/login and expire in 30 days.
+ - Protected routes require the header `Authorization: Bearer <token>`.
+ - File uploads (images) use Cloudinary via `multer-storage-cloudinary`. Endpoints that accept images use `multipart/form-data`.
 
----
+ ---
 
-## Authentication
+ ## Environment variables
+ Required variables (in `backend/.env`):
+ - `MONGO_URI` - MongoDB connection string
+ - `JWT_SECRET` - secret used to sign tokens
+ - `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` - Cloudinary credentials for image uploads
 
-### JWT Token
-Protected endpoints require a Bearer token in the Authorization header:
-```
-Authorization: Bearer <token>
-```
+ ---
 
-Tokens are provided after successful login/registration and expire in 30 days.
+ ## Error format
+ All error responses return JSON in the shape:
+ ```json
+ { "message": "Error description" }
+ ```
 
----
+ ## Endpoints
 
-## Endpoints
+ ### Authentication (`/api/auth`)
 
-### 1. Authentication Routes (`/api/auth`)
+ - POST `/api/auth/register`
+   - Access: Public
+   - Accepts: JSON or form data with `email` and `password` (route uses `multer().none()` but `express.json()` is also enabled).
+   - Body:
+     ```json
+     { "email": "user@example.com", "password": "password123" }
+     ```
+   - Success (201): returns created user and token
+     ```json
+     { "_id": "<id>", "email": "user@example.com", "token": "<jwt>" }
+     ```
 
-#### Register User
-- **Endpoint:** `POST /api/auth/register`
-- **Access:** Public
-- **Description:** Register a new user account
-- **Request Body:**
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "password123"
-  }
-  ```
-- **Success Response (201):**
-  ```json
-  {
-    "_id": "user_id",
-    "email": "user@example.com",
-    "token": "jwt_token"
-  }
-  ```
-- **Error Responses:**
-  - `400`: User already exists
-  - `400`: Invalid user data
-  - `500`: Server error
+ - POST `/api/auth/login`
+   - Access: Public
+   - Body: same as register
+   - Success (200): returns user and token
 
----
+ ---
 
-#### Login User
-- **Endpoint:** `POST /api/auth/login`
-- **Access:** Public
-- **Description:** Authenticate user and receive JWT token
-- **Request Body:**
-  ```json
-  {
-    "email": "user@example.com",
-    "password": "password123"
-  }
-  ```
-- **Success Response (200):**
-  ```json
-  {
-    "_id": "user_id",
-    "email": "user@example.com",
-    "token": "jwt_token"
-  }
-  ```
-- **Error Responses:**
-  - `401`: Invalid email or password
-  - `500`: Server error
+ ### Blogs (`/api/blogs`)
 
----
+ - GET `/api/blogs`
+   - Access: Public
+   - Returns: array of blog documents
 
-### 2. Blog Routes (`/api/blogs`)
+ - POST `/api/blogs`
+   - Access: Private (Authorization header required)
+   - Content-Type: `multipart/form-data`
+   - Form fields:
+     - `title` (string, required)
+     - `description` (string, required)
+     - `date` (optional, ISO string)
+     - `image` (file, optional)
+   - On success (201) returns the created blog document
 
-#### Get All Blogs
-- **Endpoint:** `GET /api/blogs`
-- **Access:** Public
-- **Description:** Retrieve all blogs
-- **Success Response (200):**
-  ```json
-  [
-    {
-      "_id": "blog_id",
-      "title": "Blog Title",
-      "description": "Blog description",
-      "image": "image_url",
-      "date": "2026-01-15T00:00:00Z",
-      "createdBy": "user_id"
-    }
-  ]
-  ```
-- **Error Response:**
-  - `500`: Server error
+ - GET `/api/blogs/:id`
+   - Access: Public
+   - Returns a single blog document or 404
 
----
+ - PUT `/api/blogs/:id`
+   - Access: Private
+   - Content-Type: `multipart/form-data`
+   - Form fields (all optional): `title`, `description`, `author`, `date`, `image` (file)
+   - Updates the fields provided; returns updated blog document
 
-#### Create Blog
-- **Endpoint:** `POST /api/blogs`
-- **Access:** Private (requires authentication)
-- **Description:** Create a new blog post with optional image
-- **Headers:**
-  ```
-  Authorization: Bearer <token>
-  Content-Type: multipart/form-data
-  ```
-- **Request Body:**
-  ```
-  Form Data:
-  - title (string, required)
-  - description (string, required)
-  - date (string, optional) - ISO date format
-  - image (file, optional) - Image file
-  ```
-- **Success Response (201):**
-  ```json
-  {
-    "_id": "blog_id",
-    "title": "Blog Title",
-    "description": "Blog description",
-    "image": "image_url",
-    "date": "2026-01-15T00:00:00Z",
-    "createdBy": "user_id"
-  }
-  ```
-- **Error Responses:**
-  - `401`: Unauthorized (invalid/missing token)
-  - `500`: Server error
+ - DELETE `/api/blogs/:id`
+   - Access: Private
+   - Deletes the blog and returns `{ message: 'Blog removed' }`
 
----
+ Blog model fields (summary): `title` (string), `description` (string), `date` (Date), `image` (string - Cloudinary URL), `createdBy` (User id)
 
-#### Get Blog by ID
-- **Endpoint:** `GET /api/blogs/:id`
-- **Access:** Public
-- **Description:** Retrieve a specific blog by ID
-- **URL Parameters:**
-  - `id` (string, required) - Blog ID
-- **Success Response (200):**
-  ```json
-  {
-    "_id": "blog_id",
-    "title": "Blog Title",
-    "description": "Blog description",
-    "image": "image_url",
-    "date": "2026-01-15T00:00:00Z",
-    "createdBy": "user_id"
-  }
-  ```
-- **Error Responses:**
-  - `404`: Blog not found
-  - `500`: Server error
+ ---
 
----
+ ### Cases (`/api/cases`)
 
-#### Update Blog
-- **Endpoint:** `PUT /api/blogs/:id`
-- **Access:** Private (requires authentication)
-- **Description:** Update an existing blog post
-- **Headers:**
-  ```
-  Authorization: Bearer <token>
-  Content-Type: multipart/form-data
-  ```
-- **URL Parameters:**
-  - `id` (string, required) - Blog ID
-- **Request Body:**
-  ```
-  Form Data:
-  - title (string, optional)
-  - description (string, optional)
-  - author (string, optional)
-  - date (string, optional) - ISO date format
-  - image (file, optional) - Image file
-  ```
-- **Success Response (200):**
-  ```json
-  {
-    "_id": "blog_id",
-    "title": "Updated Title",
-    "description": "Updated description",
-    "image": "image_url",
-    "date": "2026-01-15T00:00:00Z",
-    "createdBy": "user_id"
-  }
-  ```
-- **Error Responses:**
-  - `401`: Unauthorized (invalid/missing token)
-  - `404`: Blog not found
-  - `500`: Server error
+ - GET `/api/cases`
+   - Access: Public
+   - Returns: array of case documents
 
----
+ - POST `/api/cases`
+   - Access: Private
+   - Content-Type: `multipart/form-data`
+   - Form fields:
+     - `title` (string, required)
+     - `description` (string, required)
+     - `image` (file, optional)
+   - Success (201): returns created case document
 
-#### Delete Blog
-- **Endpoint:** `DELETE /api/blogs/:id`
-- **Access:** Private (requires authentication)
-- **Description:** Delete a blog post
-- **Headers:**
-  ```
-  Authorization: Bearer <token>
-  ```
-- **URL Parameters:**
-  - `id` (string, required) - Blog ID
-- **Success Response (200):**
-  ```json
-  {
-    "message": "Blog removed"
-  }
-  ```
-- **Error Responses:**
-  - `401`: Unauthorized (invalid/missing token)
-  - `404`: Blog not found
-  - `500`: Server error
+ - GET `/api/cases/:id`
+   - Access: Public
+   - Returns a single case document or 404
 
----
+ - PUT `/api/cases/:id`
+   - Access: Private
+   - Content-Type: `multipart/form-data`
+   - Form fields (all optional): `title`, `description`, `image` (file)
+   - Returns updated case document
 
-### 3. Case Routes (`/api/cases`)
+ - DELETE `/api/cases/:id`
+   - Access: Private
+   - Deletes the case and returns `{ message: 'Case removed' }`
 
-#### Get All Cases
-- **Endpoint:** `GET /api/cases`
-- **Access:** Public
-- **Description:** Retrieve all case studies
-- **Success Response (200):**
-  ```json
-  [
-    {
-      "_id": "case_id",
-      "title": "Case Title",
-      "description": "Case description",
-      "image": "image_url",
-      "createdBy": "user_id"
-    }
-  ]
-  ```
-- **Error Response:**
-  - `500`: Server error
+ Case model fields (summary): `title` (string), `description` (string), `image` (string), `createdBy` (User id)
 
----
+ ---
 
-#### Create Case
-- **Endpoint:** `POST /api/cases`
-- **Access:** Private (requires authentication)
-- **Description:** Create a new case study with optional image
-- **Headers:**
-  ```
-  Authorization: Bearer <token>
-  Content-Type: multipart/form-data
-  ```
-- **Request Body:**
-  ```
-  Form Data:
-  - title (string, required)
-  - description (string, required)
-  - image (file, optional) - Image file
-  ```
-- **Success Response (201):**
-  ```json
-  {
-    "_id": "case_id",
-    "title": "Case Title",
-    "description": "Case description",
-    "image": "image_url",
-    "createdBy": "user_id"
-  }
-  ```
-- **Error Responses:**
-  - `401`: Unauthorized (invalid/missing token)
-  - `500`: Server error
+ ## Models (brief)
+ - `User`:
+   - `email` (string, unique)
+   - `password` (string, hashed via bcrypt)
+ - `Blog`:
+   - `title`, `description`, `date`, `image`, `createdBy`
+ - `Case`:
+   - `title`, `description`, `image`, `createdBy`
 
----
+ ---
 
-#### Get Case by ID
-- **Endpoint:** `GET /api/cases/:id`
-- **Access:** Public
-- **Description:** Retrieve a specific case study by ID
-- **URL Parameters:**
-  - `id` (string, required) - Case ID
-- **Success Response (200):**
-  ```json
-  {
-    "_id": "case_id",
-    "title": "Case Title",
-    "description": "Case description",
-    "image": "image_url",
-    "createdBy": "user_id"
-  }
-  ```
-- **Error Responses:**
-  - `404`: Case not found
-  - `500`: Server error
+ ## Authentication middleware
+ The `protect` middleware checks `req.headers.authorization` for a header starting with `Bearer `, extracts the token, verifies it with `JWT_SECRET`, and attaches `req.user` (User document without password) to the request. If the token is missing/invalid the middleware responds with `401` and `{ message: 'Not authorized, ...' }`.
 
----
+ ## Uploads (images)
+ Image uploads use Cloudinary via `multer-storage-cloudinary`. The middleware `upload.single('image')` is applied to routes that accept images. The controller saves `req.file.path` (Cloudinary URL) into the model's `image` field.
 
-#### Update Case
-- **Endpoint:** `PUT /api/cases/:id`
-- **Access:** Private (requires authentication)
-- **Description:** Update an existing case study
-- **Headers:**
-  ```
-  Authorization: Bearer <token>
-  Content-Type: multipart/form-data
-  ```
-- **URL Parameters:**
-  - `id` (string, required) - Case ID
-- **Request Body:**
-  ```
-  Form Data:
-  - title (string, optional)
-  - description (string, optional)
-  - image (file, optional) - Image file
-  ```
-- **Success Response (200):**
-  ```json
-  {
-    "_id": "case_id",
-    "title": "Updated Title",
-    "description": "Updated description",
-    "image": "image_url",
-    "createdBy": "user_id"
-  }
-  ```
-- **Error Responses:**
-  - `401`: Unauthorized (invalid/missing token)
-  - `404`: Case not found
-  - `500`: Server error
+ ---
 
----
+ ## Examples
 
-#### Delete Case
-- **Endpoint:** `DELETE /api/cases/:id`
-- **Access:** Private (requires authentication)
-- **Description:** Delete a case study
-- **Headers:**
-  ```
-  Authorization: Bearer <token>
-  ```
-- **URL Parameters:**
-  - `id` (string, required) - Case ID
-- **Success Response (200):**
-  ```json
-  {
-    "message": "Case removed"
-  }
-  ```
-- **Error Responses:**
-  - `401`: Unauthorized (invalid/missing token)
-  - `404`: Case not found
-  - `500`: Server error
+ Register
+ ```bash
+ curl -X POST http://localhost:5000/api/auth/register \
+   -H "Content-Type: application/json" \
+   -d '{"email":"user@example.com","password":"password123"}'
+ ```
 
----
+ Login
+ ```bash
+ curl -X POST http://localhost:5000/api/auth/login \
+   -H "Content-Type: application/json" \
+   -d '{"email":"user@example.com","password":"password123"}'
+ ```
 
-## Error Handling
+ Create blog (with image)
+ ```bash
+ curl -X POST http://localhost:5000/api/blogs \
+   -H "Authorization: Bearer <token>" \
+   -F "title=My Blog" \
+   -F "description=Blog content" \
+   -F "image=@/path/to/image.jpg"
+ ```
 
-All error responses follow this format:
-```json
-{
-  "message": "Error description"
-}
-```
+ Update blog (multipart - optional fields)
+ ```bash
+ curl -X PUT http://localhost:5000/api/blogs/<id> \
+   -H "Authorization: Bearer <token>" \
+   -F "title=Updated title" \
+   -F "image=@/path/to/new.jpg"
+ ```
 
-### Common HTTP Status Codes
-- `200` OK - Request successful
-- `201` Created - Resource created successfully
-- `400` Bad Request - Invalid request data
-- `401` Unauthorized - Missing or invalid authentication token
-- `404` Not Found - Resource not found
-- `500` Internal Server Error - Server-side error
+ ---
 
----
+ ## Troubleshooting
+ - If you get `401: Not authorized, token failed` or `JsonWebTokenError: jwt malformed` ensure the client sends a valid `Authorization: Bearer <token>` header (not `Bearer null`).
+ - Ensure `JWT_SECRET` in `.env` matches the secret used when generating tokens.
 
-## Example Usage
+ ---
 
-### Register a User
-```bash
-curl -X POST http://localhost:5000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{
-    "email": "user@example.com",
-    "password": "password123"
-  }'
-```
-
-### Create a Blog Post
-```bash
-curl -X POST http://localhost:5000/api/blogs \
-  -H "Authorization: Bearer <token>" \
-  -F "title=My Blog" \
-  -F "description=Blog content" \
-  -F "image=@/path/to/image.jpg"
-```
-
-### Get All Blogs
-```bash
-curl http://localhost:5000/api/blogs
-```
-
-### Update a Blog Post
+ Last updated: match code in `backend/src` (controllers/routes/middleware)
 ```bash
 curl -X PUT http://localhost:5000/api/blogs/<blog_id> \
   -H "Authorization: Bearer <token>" \

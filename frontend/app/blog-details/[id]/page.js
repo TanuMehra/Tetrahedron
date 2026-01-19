@@ -130,7 +130,15 @@ export default function BlogDetailsPage() {
                                     </div>
                                     <div className="blog-details__content">
                                         <h3 className="blog-details__title-1">{blog.title}</h3>
-                                        <p className="blog-details__text-1">{blog.description}</p>
+                                        <div 
+                                            className="blog-details__text-1"
+                                            dangerouslySetInnerHTML={{ __html: blog.description }}
+                                            style={{
+                                                fontSize: "17px",
+                                                lineHeight: "1.8",
+                                                color: "#666"
+                                            }}
+                                        />
                                         
                                         <div className="blog-details__icon-and-content-box">
                                             <div className="blog-details__content-icon">
@@ -138,7 +146,14 @@ export default function BlogDetailsPage() {
                                             </div>
                                             <div className="blog-details__content-box">
                                                 <h3>Blog Details</h3>
-                                                <p>{blog.description}</p>
+                                                <div 
+                                                    dangerouslySetInnerHTML={{ __html: blog.description }}
+                                                    style={{
+                                                        fontSize: "16px",
+                                                        lineHeight: "1.8",
+                                                        color: "#666"
+                                                    }}
+                                                />
                                             </div>
                                         </div>
                                     </div>
